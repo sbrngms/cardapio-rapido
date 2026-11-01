@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-cream-100 text-charcoal-800 font-sans antialiased;
+    background-image:
+      radial-gradient(at 15% 0%, rgba(255, 165, 61, 0.08) 0%, transparent 50%),
+      radial-gradient(at 85% 100%, rgba(201, 94, 54, 0.06) 0%, transparent 50%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    @apply bg-warm-300 text-charcoal-900;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply outline-none;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-warm-500 px-5 py-3 text-sm font-semibold text-white shadow-warm transition-all duration-200 hover:bg-warm-600 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-warm-500 disabled:hover:shadow-warm;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-charcoal-800/10 bg-white/60 px-4 py-2.5 text-sm font-medium text-charcoal-700 transition-all duration-200 hover:bg-white hover:border-warm-300 active:scale-[0.98];
+  }
+
+  .card {
+    @apply rounded-2xl border border-charcoal-800/5 bg-white/80 backdrop-blur-sm shadow-card;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-charcoal-800/10 bg-cream-50 px-3 py-2 text-sm text-charcoal-800 transition-colors focus:border-warm-400 focus:bg-white;
+  }
+
+  .tag {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+}
+
+@layer utilities {
+  .shimmer-bg {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 243, 224, 0.4) 25%,
+      rgba(255, 224, 179, 0.7) 50%,
+      rgba(255, 243, 224, 0.4) 75%
+    );
+    background-size: 1000px 100%;
+    @apply animate-shimmer;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-warm-300;
+  }
+}
