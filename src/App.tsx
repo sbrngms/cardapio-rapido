@@ -123,7 +123,7 @@ export default function App() {
     body: Record<string, unknown>,
     onRetry: (message: string) => void,
   ): Promise<Record<string, unknown>> {
-    const models = ["gemini-3.5-flash", "gemini-3.5-flash", "gemini-2.5-flash"];
+    const models = ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
 
     for (let attempt = 0; attempt < models.length; attempt += 1) {
       const res = await fetch(EDGE_FUNCTION_URL, {
@@ -142,7 +142,11 @@ export default function App() {
       if (res.ok) return responseData;
 
       if (isBusy && attempt < models.length - 1) {
-        onRetry(`Serviço ocupado, tentando de novo (${attempt + 2}/3)...`);
+        onRetry(
+          res.status === 429
+            ? "Limite de uso da IA atingido. Tentando de novo..."
+            : "Serviço de IA sobrecarregado. Tentando de novo...",
+        );
         await new Promise((resolve) => setTimeout(resolve, 3000));
         continue;
       }

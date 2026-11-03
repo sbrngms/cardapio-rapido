@@ -4,8 +4,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const PRIMARY_MODEL = "gemini-3.8-flash";
-const FALLBACK_MODEL = "gemini-3.6-flash";
+const PRIMARY_MODEL = "gemini-3.6-flash";
+const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_TIMEOUT_MS = 40000;
 
@@ -193,8 +193,11 @@ interface GeminiResult {
   raw: string;
 }
 
-function isTransientStatus(status: number): boolean {
-  return status === 404 || status === 429 || status === 503 || status === 504;
+function httpErrorMessage(status: number): string {
+  if (status === 429) return "Limite de uso da IA atingido. Tente em alguns minutos.";
+  if (status === 503) return "Serviço de IA sobrecarregado. Tentando de novo...";
+  if (status === 404) return "Modelo de IA indisponível no momento.";
+  return `Erro HTTP ${status}.`;
 }
 
 function busyError(): GeminiResult {
@@ -226,10 +229,19 @@ async function callGemini(
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[Gemini][${model}] HTTP ${res.status}:`, errText);
-      if (isTransientStatus(res.status)) return { result: busyError(), status: res.status };
+      let code = "desconhecido";
+      let message = "sem mensagem";
+      try {
+        const parsed = JSON.parse(errText);
+        code = String(parsed?.error?.code ?? parsed?.error?.status ?? code);
+        message = String(parsed?.error?.message ?? message);
+      } catch {
+        message = errText;
+      }
+      console.error(`[Gemini][${model}] Falha — código ${code} (HTTP ${res.status}) — mensagem: ${message}`);
+      console.error(`[Gemini][${model}] Corpo completo:`, errText);
       return {
-        result: { data: null, error: `Erro HTTP ${res.status}.`, finishReason: null, raw: "" },
+        result: { data: null, error: httpErrorMessage(res.status), finishReason: null, raw: errText },
         status: res.status,
       };
     }
