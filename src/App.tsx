@@ -137,7 +137,7 @@ export default function App() {
 
       const data: unknown = await res.json();
       const responseData = isRecord(data) ? data : {};
-      const isBusy = res.status === 429 || res.status === 503 || res.status === 504;
+      const isBusy = res.status === 404 || res.status === 429 || res.status === 503 || res.status === 504;
 
       if (res.ok) return responseData;
 

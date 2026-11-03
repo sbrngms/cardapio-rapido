@@ -4,8 +4,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const PRIMARY_MODEL = "gemini-3.5-flash";
-const FALLBACK_MODEL = "gemini-2.5-flash";
+const PRIMARY_MODEL = "gemini-3.8-flash";
+const FALLBACK_MODEL = "gemini-3.6-flash";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_TIMEOUT_MS = 40000;
 
@@ -194,7 +194,7 @@ interface GeminiResult {
 }
 
 function isTransientStatus(status: number): boolean {
-  return status === 429 || status === 503 || status === 504;
+  return status === 404 || status === 429 || status === 503 || status === 504;
 }
 
 function busyError(): GeminiResult {
@@ -309,7 +309,6 @@ Deno.serve(async (req: Request) => {
           responseMimeType: "application/json",
           responseSchema: EXTRACT_SCHEMA,
           thinkingConfig: { thinkingLevel: "low" },
-          temperature: 0.3,
         },
       }, payload.model);
 
@@ -349,7 +348,6 @@ Deno.serve(async (req: Request) => {
           responseMimeType: "application/json",
           responseSchema: REVIEW_SCHEMA,
           thinkingConfig: { thinkingLevel: "low" },
-          temperature: 0.2,
         },
       }, payload.model);
 
@@ -390,7 +388,6 @@ Deno.serve(async (req: Request) => {
           responseMimeType: "application/json",
           responseSchema: WRITE_SCHEMA,
           thinkingConfig: { thinkingLevel: "low" },
-          temperature: 0.7,
         },
       }, payload.model);
 
