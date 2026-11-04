@@ -6,11 +6,13 @@ import { ProcessingState } from "@/components/ProcessingState";
 import { MenuTable } from "@/components/MenuTable";
 import { Combos } from "@/components/Combos";
 import { AgentTimeline } from "@/components/AgentTimeline";
-import type { Menu, AppState, AgentStep } from "@/types";
+import { AnalysisPanel } from "@/components/AnalysisPanel";
+import type { Menu, AppState, AgentStep, AiInsight, InsightsStatus } from "@/types";
 import { AGENT_STEPS } from "@/types";
 import { EDGE_FUNCTION_URL } from "@/lib/supabase";
 import { exportToCsv } from "@/lib/csv";
 import { resizeImage } from "@/lib/image";
+import { computeMenuStats } from "@/lib/menuStats";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -99,6 +101,15 @@ function mergeWrite(original: Menu["categories"], writeValue: unknown): Menu["ca
   });
 }
 
+function normalizeInsights(value: unknown): AiInsight[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(isRecord)
+    .filter((item) => typeof item.title === "string" && typeof item.explanation === "string")
+    .map((item) => ({ title: String(item.title), explanation: String(item.explanation) }))
+    .slice(0, 5);
+}
+
 export default function App() {
   const [state, setState] = useState<AppState>("idle");
   const [menu, setMenu] = useState<Menu | null>(null);
@@ -121,7 +132,7 @@ export default function App() {
 
   async function requestWithRetries(
     body: Record<string, unknown>,
-    onRetry: (message: string) => void,
+    onRetry?: (message: string) => void,
   ): Promise<Record<string, unknown>> {
     const models = ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
 
@@ -142,7 +153,7 @@ export default function App() {
       if (res.ok) return responseData;
 
       if (isBusy && attempt < models.length - 1) {
-        onRetry(
+        onRetry?.(
           res.status === 429
             ? "Limite de uso da IA atingido. Tentando de novo..."
             : "Serviço de IA sobrecarregado. Tentando de novo...",

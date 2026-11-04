@@ -1,5 +1,7 @@
 import type { Menu } from "@/types";
 import { UtensilsCrossed, Package } from "lucide-react";
+import { formatPrice } from "@/lib/format";
+import { getComboSavings } from "@/lib/menuStats";
 
 interface CombosProps {
   menu: Menu;
@@ -7,6 +9,7 @@ interface CombosProps {
 
 export function Combos({ menu }: CombosProps) {
   if (!menu.combos.length) return null;
+  const savingsByCombo = menu.combos.map((combo) => getComboSavings(menu, combo));
 
   return (
     <div className="space-y-4">
@@ -46,9 +49,14 @@ export function Combos({ menu }: CombosProps) {
               <div className="mt-4 flex items-end justify-between border-t border-charcoal-800/5 pt-3">
                 <span className="text-xs text-charcoal-700/50">Preço do combo</span>
                 <span className="font-display text-xl font-bold text-warm-600">
-                  R$ {combo.price.toFixed(2).replace(".", ",")}
+                  R$ {formatPrice(combo.price)}
                 </span>
               </div>
+              {savingsByCombo[i] && savingsByCombo[i].savings > 0 && (
+                <p className="mt-2 text-right text-xs font-semibold text-olive-700">
+                  Economize R$ {formatPrice(savingsByCombo[i].savings)}
+                </p>
+              )}
             </div>
           </div>
         ))}

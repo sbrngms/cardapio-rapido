@@ -25,6 +25,13 @@ export interface Menu {
   combos: Combo[];
 }
 
+export interface AiInsight {
+  title: string;
+  explanation: string;
+}
+
+export type InsightsStatus = "idle" | "loading" | "done" | "error";
+
 export type AppState =
   | "idle"
   | "extracting"
