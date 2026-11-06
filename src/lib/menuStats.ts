@@ -39,10 +39,20 @@ export interface TicketEstimate {
   drinkAvg: number;
 }
 
+export interface DishRef {
+  name: string;
+  price: number;
+  categoryName: string;
+}
+
 export interface MenuStats {
   totalDishes: number;
   categoryCount: number;
+  pricedCount: number;
+  unpricedCount: number;
   averagePrice: number | null;
+  priciest: DishRef | null;
+  cheapest: DishRef | null;
   ticket: TicketEstimate | null;
   categories: CategoryStats[];
   alerts: PriceAlert[];
@@ -119,12 +129,21 @@ export function getComboSavings(menu: Menu, combo: Combo): ComboSavings | null {
 
 export function computeMenuStats(menu: Menu): MenuStats {
   const allDishes = menu.categories.flatMap((category) => category.dishes);
-  const pricedPrices = allDishes.filter(isPriced).map((dish) => dish.price);
+  const pricedRefs: DishRef[] = menu.categories.flatMap((category) =>
+    category.dishes
+      .filter(isPriced)
+      .map((dish) => ({ name: dish.name, price: dish.price, categoryName: category.name })),
+  );
+  const sorted = [...pricedRefs].sort((a, b) => a.price - b.price);
 
   return {
     totalDishes: allDishes.length,
     categoryCount: menu.categories.length,
-    averagePrice: pricedPrices.length ? mean(pricedPrices) : null,
+    pricedCount: pricedRefs.length,
+    unpricedCount: allDishes.length - pricedRefs.length,
+    averagePrice: pricedRefs.length ? mean(pricedRefs.map((ref) => ref.price)) : null,
+    priciest: sorted.length ? sorted[sorted.length - 1] : null,
+    cheapest: sorted.length ? sorted[0] : null,
     ticket: buildTicket(menu),
     categories: menu.categories.map(categoryStats),
     alerts: buildAlerts(menu),

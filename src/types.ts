@@ -27,7 +27,7 @@ export interface Menu {
 
 export interface AiInsight {
   title: string;
-  explanation: string;
+  detail: string;
 }
 
 export type InsightsStatus = "idle" | "loading" | "done" | "error";

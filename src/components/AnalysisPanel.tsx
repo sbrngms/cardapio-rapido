@@ -1,5 +1,14 @@
 import { useMemo } from "react";
-import { AlertTriangle, Package, Receipt, Wallet, Hash, Layers } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Hash,
+  Layers,
+  Package,
+  Receipt,
+  Wallet,
+} from "lucide-react";
 import type { AiInsight, InsightsStatus, Menu } from "@/types";
 import { computeMenuStats, type MenuStats } from "@/lib/menuStats";
 import { formatPrice } from "@/lib/format";
@@ -50,6 +59,18 @@ function SummaryCards({ stats }: { stats: MenuStats }) {
       icon: Wallet,
     },
     {
+      label: "Prato mais caro",
+      value: stats.priciest === null ? "—" : `R$ ${formatPrice(stats.priciest.price)}`,
+      hint: stats.priciest === null ? "sem pratos com preço" : stats.priciest.name,
+      icon: ArrowUpCircle,
+    },
+    {
+      label: "Prato mais barato",
+      value: stats.cheapest === null ? "—" : `R$ ${formatPrice(stats.cheapest.price)}`,
+      hint: stats.cheapest === null ? "sem pratos com preço" : stats.cheapest.name,
+      icon: ArrowDownCircle,
+    },
+    {
       label: "Ticket médio",
       value: stats.ticket === null ? "—" : `R$ ${formatPrice(stats.ticket.value)}`,
       hint: stats.ticket === null ? "precisa de pratos e bebidas" : "1 prato principal + 1 bebida",
@@ -58,15 +79,22 @@ function SummaryCards({ stats }: { stats: MenuStats }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {items.map((item) => (
-        <div key={item.label} className="card p-4">
-          <item.icon className="h-4 w-4 text-warm-500" />
-          <p className="mt-3 text-xs font-medium uppercase tracking-[0.12em] text-charcoal-700/55">{item.label}</p>
-          <p className="mt-1 font-display text-2xl font-semibold text-charcoal-800">{item.value}</p>
-          <p className="mt-0.5 text-xs text-charcoal-700/55">{item.hint}</p>
-        </div>
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        {items.map((item) => (
+          <div key={item.label} className="card min-w-0 p-4">
+            <item.icon className="h-4 w-4 text-warm-500" />
+            <p className="mt-3 text-xs font-medium uppercase tracking-[0.12em] text-charcoal-700/55">{item.label}</p>
+            <p className="mt-1 font-display text-2xl font-semibold text-charcoal-800">{item.value}</p>
+            <p className="mt-0.5 truncate text-xs text-charcoal-700/55">{item.hint}</p>
+          </div>
+        ))}
+      </div>
+      {stats.unpricedCount > 0 && (
+        <p className="text-xs text-charcoal-700/60">
+          {stats.unpricedCount} {stats.unpricedCount === 1 ? "prato sem preço ficou" : "pratos sem preço ficaram"} de fora dos cálculos.
+        </p>
+      )}
     </div>
   );
 }
@@ -92,18 +120,16 @@ function AlertsCard({ stats }: { stats: MenuStats }) {
                 className="flex flex-wrap items-center gap-3 rounded-xl border border-charcoal-800/5 bg-cream-50 px-4 py-3"
               >
                 <AlertTriangle className={`h-4 w-4 shrink-0 ${above ? "text-terracotta-600" : "text-olive-600"}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-charcoal-800">{alert.dishName}</p>
-                  <p className="text-xs text-charcoal-700/60">
-                    {alert.categoryName} · média da categoria R$ {formatPrice(alert.categoryAvg)}
-                  </p>
-                </div>
+                <p className="min-w-0 flex-1 text-sm text-charcoal-800">
+                  <span className="font-semibold">{alert.dishName}</span> está {percent}% {above ? "acima" : "abaixo"} da média de{" "}
+                  <span className="font-semibold">{alert.categoryName}</span>
+                </p>
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                     above ? "bg-terracotta-100 text-terracotta-700" : "bg-olive-100 text-olive-700"
                   }`}
                 >
-                  R$ {formatPrice(alert.price)} · {percent}% {above ? "acima" : "abaixo"}
+                  R$ {formatPrice(alert.price)} · média R$ {formatPrice(alert.categoryAvg)}
                 </span>
               </li>
             );

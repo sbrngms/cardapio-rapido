@@ -53,7 +53,7 @@ export function AiInsights({ insights, status, error, onGenerate }: AiInsightsPr
                 Sugestão da IA
               </span>
               <h4 className="mt-2 font-display text-base font-semibold text-charcoal-800">{insight.title}</h4>
-              <p className="mt-1 text-sm leading-relaxed text-charcoal-700/80">{insight.explanation}</p>
+              <p className="mt-1 text-sm leading-relaxed text-charcoal-700/80">{insight.detail}</p>
             </div>
           ))}
         </div>

@@ -81,7 +81,7 @@ O QUE NÃO É ERRO (não corrija):
 
 Para cada item corrigido, inclua "reviewNote" com o motivo em português, ex: "Revisor: preço corrigido de 25,9 para 25,90". Para itens sem alteração, deixe "reviewNote" como string vazia.
 
-Se NENHUM item precisou de correção, inclua um campo "overallNote" com o texto "Revisor: nenhum problema encontrado".
+Se NENHUM item precisou de correção, inclua um campo "overallNote" com o texto "Revisor: nenhum problema encontrado ✓".
 
 Use exatamente as categorias que aparecem na imagem. Não crie categorias novas.
 
@@ -177,6 +177,35 @@ const WRITE_SCHEMA = {
     },
   },
   required: ["categories", "combos"],
+};
+
+const ANALYZE_PROMPT = `Você é um consultor de restaurantes brasileiro que analisa cardápios para o dono do estabelecimento.
+
+Receba o cardápio em JSON (categorias, pratos com preços e combos). Produza de 3 a 5 insights práticos e acionáveis, cobrindo, quando fizer sentido: preço (faixas, pratos muito caros ou baratos em relação à categoria), mix de pratos (equilíbrio entre categorias), combos (vantagem para o cliente e margem para o restaurante) e oportunidades de venda.
+
+Regras adicionais:
+- Use SOMENTE os pratos, categorias, preços e combos que estão no JSON recebido. Nunca invente prato, preço ou categoria.
+- Não use dados de vendas, popularidade ou avaliações: você não os recebe. Não afirme que um prato é "mais pedido" ou "campeão de vendas".
+- Cada insight tem um título curto (até 60 caracteres) e um detalhe de 1 a 2 frases citando os nomes e valores reais do cardápio.
+
+${SHARED_RULES}`;
+
+const ANALYZE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    insights: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          title: { type: "STRING" },
+          detail: { type: "STRING" },
+        },
+        required: ["title", "detail"],
+      },
+    },
+  },
+  required: ["insights"],
 };
 
 function stripMarkdownFence(text: string): string {
@@ -418,8 +447,46 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (step === "analyze") {
+      const { menu } = payload;
+      if (!menu || !Array.isArray(menu.categories)) {
+        return new Response(
+          JSON.stringify({ error: "Cardápio não fornecido para análise." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const response = await callGemini(apiKey, {
+        contents: [
+          { parts: [
+            { text: ANALYZE_PROMPT },
+            { text: `Cardápio em JSON:\n${JSON.stringify({ categories: menu.categories, combos: menu.combos ?? [] })}` },
+          ] },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: ANALYZE_SCHEMA,
+          thinkingConfig: { thinkingLevel: "low" },
+        },
+      }, payload.model);
+
+      const result = response.result;
+      if (!result.data) {
+        return new Response(
+          JSON.stringify({ error: result.error, finishReason: result.finishReason }),
+          { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const analysis = result.data as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({ insights: Array.isArray(analysis.insights) ? analysis.insights.slice(0, 5) : [] }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     return new Response(
-      JSON.stringify({ error: "Passo desconhecido. Use 'extract', 'review' ou 'write'." }),
+      JSON.stringify({ error: "Passo desconhecido. Use 'extract', 'review', 'write' ou 'analyze'." }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

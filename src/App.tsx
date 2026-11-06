@@ -12,7 +12,8 @@ import { AGENT_STEPS } from "@/types";
 import { EDGE_FUNCTION_URL } from "@/lib/supabase";
 import { exportToCsv } from "@/lib/csv";
 import { resizeImage } from "@/lib/image";
-import { computeMenuStats } from "@/lib/menuStats";
+
+type ResultTab = "cardapio" | "analise";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -105,13 +106,14 @@ function normalizeInsights(value: unknown): AiInsight[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter(isRecord)
-    .filter((item) => typeof item.title === "string" && typeof item.explanation === "string")
-    .map((item) => ({ title: String(item.title), explanation: String(item.explanation) }))
+    .filter((item) => typeof item.title === "string" && typeof item.detail === "string")
+    .map((item) => ({ title: String(item.title), detail: String(item.detail) }))
     .slice(0, 5);
 }
 
 export default function App() {
   const [state, setState] = useState<AppState>("idle");
+  const [tab, setTab] = useState<ResultTab>("cardapio");
   const [menu, setMenu] = useState<Menu | null>(null);
   const [error, setError] = useState<string>("");
   const [writeError, setWriteError] = useState<string>("");
@@ -119,6 +121,9 @@ export default function App() {
   const [processingMessage, setProcessingMessage] = useState("Extraindo categorias e preços da foto");
   const [analysisDuration, setAnalysisDuration] = useState<number | null>(null);
   const [timeline, setTimeline] = useState<AgentStep[]>(AGENT_STEPS);
+  const [insights, setInsights] = useState<AiInsight[]>([]);
+  const [insightsStatus, setInsightsStatus] = useState<InsightsStatus>("idle");
+  const [insightsError, setInsightsError] = useState<string>("");
   const imageRef = useRef<{ base64: string; mimeType: string } | null>(null);
   const analysisStartedAt = useRef<number | null>(null);
 
@@ -177,6 +182,10 @@ export default function App() {
     setError("");
     setWriteError("");
     setAnalysisDuration(null);
+    setInsights([]);
+    setInsightsStatus("idle");
+    setInsightsError("");
+    setTab("cardapio");
     setProcessingMessage("Extraindo categorias e preços da foto");
     resetTimeline();
     updateStep("extract", "running", null);
@@ -275,22 +284,42 @@ export default function App() {
     }
   }
 
+  async function generateInsights() {
+    if (!menu) return;
+    setInsightsStatus("loading");
+    setInsightsError("");
+    try {
+      const data = await requestWithRetries({
+        step: "analyze",
+        menu: { categories: menu.categories, combos: menu.combos },
+      });
+      setInsights(normalizeInsights(data.insights));
+      setInsightsStatus("done");
+    } catch (err) {
+      setInsightsError(err instanceof Error ? err.message : "Não foi possível gerar os insights.");
+      setInsightsStatus("error");
+    }
+  }
+
   function roundSeconds(ms: number): number {
     return Math.max(0, Math.round(ms / 100) / 10);
   }
 
   function reset() {
     setState("idle");
+    setTab("cardapio");
     setMenu(null);
     setError("");
     setWriteError("");
     setReviewNote("");
     setProcessingMessage("Extraindo categorias e preços da foto");
     setAnalysisDuration(null);
+    setInsights([]);
+    setInsightsStatus("idle");
+    setInsightsError("");
     resetTimeline();
     imageRef.current = null;
     analysisStartedAt.current = null;
-    setReviewNote("");
   }
 
   const isProcessing = state === "extracting" || state === "reviewing" || state === "writing";
@@ -397,48 +426,83 @@ export default function App() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-warm-200 bg-white/70 px-5 py-4">
-              <AgentTimeline steps={timeline} />
-            </div>
-
-            {reviewNote && (
-              <div
-                className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm animate-fade-in ${
-                  reviewNote.includes("nenhum problema")
-                    ? "border-green-200 bg-green-50 text-green-700"
-                    : "border-warm-200 bg-warm-50 text-warm-700"
-                }`}
-              >
-                {reviewNote}
-              </div>
-            )}
-
-            {writeError && (
-              <div className="flex items-center gap-2 rounded-xl border border-warm-200 bg-warm-50 px-4 py-3 text-sm text-warm-700">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>
-                  As descrições e combos não puderam ser gerados ({writeError}). A
-                  tabela com pratos e preços está disponível para edição.
-                </span>
+            <div role="tablist" className="flex gap-1 border-b border-charcoal-800/10">
+              {(
+                [
+                  { id: "cardapio", label: "Cardápio" },
+                  { id: "analise", label: "Análise" },
+                ] as const
+              ).map((item) => (
                 <button
-                  onClick={() => menu && runWrite(menu)}
-                  className="ml-auto flex shrink-0 items-center gap-1 font-medium text-warm-600 hover:text-warm-700"
+                  key={item.id}
+                  role="tab"
+                  aria-selected={tab === item.id}
+                  onClick={() => setTab(item.id)}
+                  className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                    tab === item.id
+                      ? "border-warm-600 text-warm-700"
+                      : "border-transparent text-charcoal-700/60 hover:text-charcoal-800"
+                  }`}
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Repetir
+                  {item.label}
                 </button>
-              </div>
-            )}
-
-            <MenuTable menu={menu} onChange={setMenu} />
-            <Combos menu={menu} />
-
-            <div className="flex justify-center pt-4">
-              <button onClick={() => exportToCsv(menu)} className="btn-primary">
-                <Download className="h-4 w-4" />
-                Exportar cardápio completo (CSV)
-              </button>
+              ))}
             </div>
+
+            {tab === "cardapio" ? (
+              <>
+                <div className="rounded-xl border border-warm-200 bg-white/70 px-5 py-4">
+                  <AgentTimeline steps={timeline} />
+                </div>
+
+                {reviewNote && (
+                  <div
+                    className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm animate-fade-in ${
+                      reviewNote.includes("nenhum problema")
+                        ? "border-green-200 bg-green-50 text-green-700"
+                        : "border-warm-200 bg-warm-50 text-warm-700"
+                    }`}
+                  >
+                    {reviewNote}
+                  </div>
+                )}
+
+                {writeError && (
+                  <div className="flex items-center gap-2 rounded-xl border border-warm-200 bg-warm-50 px-4 py-3 text-sm text-warm-700">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>
+                      As descrições e combos não puderam ser gerados ({writeError}). A
+                      tabela com pratos e preços está disponível para edição.
+                    </span>
+                    <button
+                      onClick={() => menu && runWrite(menu)}
+                      className="ml-auto flex shrink-0 items-center gap-1 font-medium text-warm-600 hover:text-warm-700"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Repetir
+                    </button>
+                  </div>
+                )}
+
+                <MenuTable menu={menu} onChange={setMenu} />
+                <Combos menu={menu} />
+
+                <div className="flex justify-center pt-4">
+                  <button onClick={() => exportToCsv(menu)} className="btn-primary">
+                    <Download className="h-4 w-4" />
+                    Exportar cardápio completo (CSV)
+                  </button>
+                </div>
+              </>
+            ) : (
+              <AnalysisPanel
+                menu={menu}
+                insights={insights}
+                insightsStatus={insightsStatus}
+                insightsError={insightsError}
+                onGenerateInsights={generateInsights}
+              />
+            )}
           </div>
         )}
       </main>
