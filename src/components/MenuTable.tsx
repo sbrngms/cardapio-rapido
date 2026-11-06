@@ -1,6 +1,41 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Menu } from "@/types";
 import { Plus, Trash2, ChevronDown, ChevronUp, Sparkles, Info } from "lucide-react";
+
+interface PriceInputProps {
+  value: number;
+  onCommit: (price: number) => void;
+}
+
+function parsePriceText(text: string): number {
+  const cleaned = text.replace(/[^\d,.]/g, "");
+  const normalized = cleaned.includes(",") ? cleaned.replace(/\./g, "").replace(",", ".") : cleaned;
+  const parsed = parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function PriceInput({ value, onCommit }: PriceInputProps) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const formatted = value ? value.toFixed(2).replace(".", ",") : "";
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={draft ?? formatted}
+      onFocus={(e) => e.target.select()}
+      onWheel={(e) => e.currentTarget.blur()}
+      onChange={(e) => {
+        const text = e.target.value.replace(/[^\d,.]/g, "");
+        setDraft(text);
+        onCommit(parsePriceText(text));
+      }}
+      onBlur={() => setDraft(null)}
+      placeholder="0,00"
+      className="w-20 rounded-md bg-transparent text-right text-sm font-semibold text-warm-600 hover:bg-white focus:bg-white"
+    />
+  );
+}
 
 interface MenuTableProps {
   menu: Menu;
@@ -131,16 +166,9 @@ export function MenuTable({ menu, onChange }: MenuTableProps) {
                       />
                       <div className="flex items-center gap-1">
                         <span className="text-sm text-charcoal-700/40">R$</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={dish.price ? dish.price.toFixed(2).replace(".", ",") : ""}
-                          onChange={(e) => {
-                            const normalized = e.target.value.replace(/[^\d,.]/g, "").replace(",", ".");
-                            updateDish(ci, di, "price", parseFloat(normalized) || 0);
-                          }}
-                          placeholder="0,00"
-                          className="w-20 rounded-md bg-transparent text-right text-sm font-semibold text-warm-600 hover:bg-white focus:bg-white"
+                        <PriceInput
+                          value={dish.price}
+                          onCommit={(price) => updateDish(ci, di, "price", price)}
                         />
                       </div>
                     </div>

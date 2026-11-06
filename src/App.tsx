@@ -410,7 +410,7 @@ export default function App() {
                 </p>
                 {analysisDuration !== null && (
                   <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-warm-600">
-                    Análise concluída em {analysisDuration.toLocaleString("pt-BR")}s
+                    Análise concluída em {analysisDuration.toFixed(1).replace(".", ",")} s
                   </p>
                 )}
               </div>
